@@ -11,10 +11,46 @@ var mouse = new THREE.Vector2();
 
 var character = { x: 45, y: 45, sprite: undefined };
 var room = [];
+var tiles = [];
 var w = 100;
 var h = 100;
 var materials = [];
 
+
+var characterState = [character];
+var currentBasis = 0;
+
+// SOME QUANTUM STUFF
+var beamSplit() {
+    var a = { x: character.x, y: character.y, sprite: undefined, basis: 0 };
+    var b = { x: character.x, y: character.y, sprite: undefined, basis: 1 };
+    characterState = [a, b];
+}
+
+
+var beamCombine() {
+    characterState = [character];
+    currentBasis = 0;
+}
+
+
+function checkBeamSplit(i, j) {
+    var t = 100 * i + j;
+    var n = mapLayers[t];
+    if (n == 1) return true;
+    return false;
+}
+
+
+function changeBasis() { 
+
+    currentBasis = (currentBasis + 1) % (characterState.length);
+
+}
+
+
+
+// - - - - 
 init();
 animate();
 
@@ -40,13 +76,15 @@ function MapObjectFactory(i, j, t) {
 
 
 // A FUNCTION
-var objects = [];
 function mouseDown(event) {
     //console.log(event);
     
     mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
     mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
 
+    // GUI
+
+    // WORLD
     var worldX = mouse.x;
     var worldY = mouse.y;
     
@@ -73,13 +111,6 @@ function mouseDown(event) {
 // PROJ
 function toScreenPosition(vector)
 {
-    //var vector = new THREE.Vector3();
-
-    //var widthHalf = 0.5*renderer.context.canvas.width;
-    //var heightHalf = 0.5*renderer.context.canvas.height;
-
-    //obj.updateMatrixWorld();
-    //vector.setFromMatrixPosition(obj.matrixWorld);
     vector.project(camera);
 
     vector.x = ( vector.x * widthHalf ) + widthHalf;
@@ -89,8 +120,8 @@ function toScreenPosition(vector)
         x: vector.x,
         y: vector.y
     };
-
 };
+
 
 // FUNCTIONS 		
 function init() 
@@ -183,9 +214,10 @@ function createSprite(x, y, material) {
 
 function checkSpace(x, y) {
     var i = (x) * w + (y);
-    return room[i];// == undefined;
+    return room[i];
 
 }
+
 
 function pushTo(x0, y0, x1, y1) {
     var i = (x0) * w + (y0);
@@ -202,8 +234,7 @@ function pushTo(x0, y0, x1, y1) {
     var q = squareColour(y1, x1); // ?
     if (q != undefined) console.log(j + ' ' + q + ' ' + room[j].col);
     if (q == room[j].col) {
-        room[j].sprite.position.set( x, -50, y );
-        room[j].move = false;
+        blockDrop(x1, y1);
     }
 }
 
@@ -276,6 +307,8 @@ function update()
     var x = character.x * 50;
     var y = character.y * 50;
     character.sprite.position.set( x, 50, y );
+    
+    checkBeamSplit(character.x, character.y);
 
 
 	if ( keyboard.pressed("z") ) 
@@ -289,8 +322,25 @@ function render()
 	renderer.render( scene, camera );
 }
 
-
-
+//-------------------------------------------------------------------------
+// Block Drop
+//-------------------------------------------------------------------------
+function blockDrop(i, j) {      
+    var t = i * 100 + j;
+    
+    // Move sprite 
+    var x = room[t].sprite.position.x;
+    var y = room[t].sprite.position.z;
+    room[t].sprite.position.set( x, 0, y );
+    
+    // Remove pushable block from game board
+    room[t] = undefined;
+    
+    // Move floor
+    var x = tiles[t].position.x;
+    var y = tiles[t].position.z;
+    tiles[t].position.set( x, -50, y );    
+}
 
   //-------------------------------------------------------------------------
   // LOAD THE MAP
@@ -339,7 +389,7 @@ function render()
 	        floor.position.z = (j)*50 - 25;
 	        floor.rotation.x = Math.PI / 2;
 	        scene.add(floor);
-	        objects.push(floor);
+	        tiles.push(floor);
         }
     }
     
