@@ -1,20 +1,96 @@
-/*
-	Three.js "tutorials by example"
-	Author: Lee Stemkoski
-	Date: July 2013 (three.js v59dev)
-*/
-
 // MAIN
 
 // standard global variables
-var container, scene, camera, renderer, controls, stats;
+var container, scene, camera, renderer;
 var keyboard = new THREEx.KeyboardState();
 var clock = new THREE.Clock();
 // custom global variables
 var cube;
+var raycaster = new THREE.Raycaster();
+var mouse = new THREE.Vector2();
+
+var character = { x: 45, y: 45, sprite: undefined };
+var room = [];
+var w = 100;
+var h = 100;
+var materials = [];
 
 init();
 animate();
+
+
+// SOMETHING
+function MapObjectFactory(i, j, t) {
+    var box = {};
+    var m = materials[t % 3]; 
+    
+    var x = i;
+    var y = j;
+    
+    box.sprite = createSprite(x * 50, y * 50, m); 
+    box.move = (t == 1);
+    box.pos = [i, j];
+    box.col = t;
+    
+    var t = (x) * w + (y);
+    room[t] = box;
+    
+    return box;
+}
+
+
+// A FUNCTION
+var objects = [];
+function mouseDown(event) {
+    //console.log(event);
+    
+    mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+    mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+
+    var worldX = mouse.x;
+    var worldY = mouse.y;
+    
+    var a = character.sprite.position;
+    a.applyMatrix4(camera.matrixWorldInverse);
+    a.applyMatrix4(camera.projectionMatrix);
+    console.log(a);
+    
+    
+    //var proj = toScreenPosition(character.sprite.position);
+    
+    var up = worldY - a.y;
+    var ac = worldX - a.x;
+    if (Math.abs(up) > Math.abs(ac)) {
+        if (worldY > a.y) moveUp = true;
+        if (worldY < a.y) moveDown = true;
+    } else {
+        if (worldX > a.x) moveRight = true;
+        if (worldX < a.x) moveLeft = true;
+    }
+}
+
+
+// PROJ
+function toScreenPosition(vector)
+{
+    //var vector = new THREE.Vector3();
+
+    //var widthHalf = 0.5*renderer.context.canvas.width;
+    //var heightHalf = 0.5*renderer.context.canvas.height;
+
+    //obj.updateMatrixWorld();
+    //vector.setFromMatrixPosition(obj.matrixWorld);
+    vector.project(camera);
+
+    vector.x = ( vector.x * widthHalf ) + widthHalf;
+    vector.y = - ( vector.y * heightHalf ) + heightHalf;
+
+    return { 
+        x: vector.x,
+        y: vector.y
+    };
+
+};
 
 // FUNCTIONS 		
 function init() 
@@ -23,9 +99,9 @@ function init()
 	scene = new THREE.Scene();
 	// CAMERA
 	var SCREEN_WIDTH = window.innerWidth, SCREEN_HEIGHT = window.innerHeight;
-	var VIEW_ANGLE = 45, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 0.1, FAR = 20000;
+	var ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 1e1, FAR = 1e5;
 	var frustumSize = 1000;
-	camera = new THREE.OrthographicCamera( frustumSize * ASPECT / - 2, frustumSize * ASPECT / 2, frustumSize / 2, frustumSize / - 2, 1e1, 1e5 );
+	camera = new THREE.OrthographicCamera( frustumSize * ASPECT / - 2, frustumSize * ASPECT / 2, frustumSize / 2, frustumSize / - 2, NEAR, FAR );
 	scene.add(camera);
 	camera.position.set(0,4000,4000);
 	camera.lookAt(scene.position);	
@@ -40,14 +116,10 @@ function init()
 	// EVENTS
 	THREEx.WindowResize(renderer, camera);
 	THREEx.FullScreen.bindKey({ charCode : 'm'.charCodeAt(0) });
-	// CONTROLS
-	controls = new THREE.OrbitControls( camera, renderer.domElement );
-	// STATS
-	stats = new Stats();
-	stats.domElement.style.position = 'absolute';
-	stats.domElement.style.bottom = '0px';
-	stats.domElement.style.zIndex = 100;
-	container.appendChild( stats.domElement );
+	
+    container.addEventListener("mousedown", function (e) {
+            mouseDown(e);
+        }, false);
 	// LIGHT
 	var light = new THREE.PointLight(0xffffff);
 	light.position.set(0,250,0);
@@ -55,51 +127,47 @@ function init()
 	// FLOOR
 	var floorTexture = new THREE.ImageUtils.loadTexture( 'images/checkerboard.jpg' );
 	floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping; 
-	floorTexture.repeat.set( 10, 10 );
-	var floorMaterial = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide } );
-	var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
-	var floor = new THREE.Mesh(floorGeometry, floorMaterial);
-	floor.position.y = -0.5;
-	floor.rotation.x = Math.PI / 2;
-	scene.add(floor);
-	// SKYBOX/FOG
-	var skyBoxGeometry = new THREE.CubeGeometry( 10000, 10000, 10000 );
-	var skyBoxMaterial = new THREE.MeshBasicMaterial( { color: 0x9999ff, side: THREE.BackSide } );
-	var skyBox = new THREE.Mesh( skyBoxGeometry, skyBoxMaterial );
-	// scene.add(skyBox);
-	scene.fog = new THREE.FogExp2( 0x9999ff, 0.00025 );
+	//floorTexture.repeat.set( 1, 1 );
+	materials[10] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide } );
+	materials[11] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, color: 0x535376 } );
+	materials[12] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, color: 0x00ffff } );
+	materials[13] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, color: 0x6666ff } );
+	//var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
+
 	
 	////////////
 	// CUSTOM //
 	////////////
 	
-	var ballTexture = THREE.ImageUtils.loadTexture( 'images/redball.png' );
 	var crateTexture = THREE.ImageUtils.loadTexture( 'images/Box.png' );
 	var charTexture = THREE.ImageUtils.loadTexture( 'images/character pink girl sm.png' );
-	
-	var ballMaterial = new THREE.SpriteMaterial( { map: ballTexture, useScreenCoordinates: true, alignment: THREE.SpriteAlignment.topLeft  } );
-	var sprite = new THREE.Sprite( ballMaterial );
-	sprite.position.set( 50, 50, 0 );
-	sprite.scale.set( 64, 64, 1.0 ); // imageWidth, imageHeight
-	scene.add( sprite );
-	
-	var ballMaterial = new THREE.SpriteMaterial( { map: ballTexture, useScreenCoordinates: true, alignment: THREE.SpriteAlignment.bottomRight } );
-	var sprite = new THREE.Sprite( ballMaterial );
-	sprite.position.set( window.innerWidth - 50, window.innerHeight - 50, 0 );
-	sprite.scale.set( 64, 64, 1.0 ); // imageWidth, imageHeight
-	scene.add( sprite );
 		
-    var crateMaterial1 = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0xff8888 } );
- 	var crateMaterial2 = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0x00ffff } );
-   	var crateMaterial3 = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0xff8888 } );
-   	var charMaterial = new THREE.SpriteMaterial( { map: charTexture, useScreenCoordinates: false } );
-		
-	createSprite( -100, 0, crateMaterial1 );
-	createSprite( 0, 0, crateMaterial2 );
-	createSprite( 100, 0, crateMaterial3 );
+    materials[0] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0xffffff } );
+   	materials[1] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0x535376 } ); // Wall
+   	materials[2] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0x00ffff } ); 
+
+   	var charMaterial = new THREE.SpriteMaterial( { map: charTexture, useScreenCoordinates: false } );		
 	
-	createSprite( -120, -200, charMaterial );
+	character.sprite = 
+	    createSprite( -1, -1, charMaterial );
+    var x = character.x * 50;
+    var y = character.y * 50;
+    character.sprite.position.set( x, 50, y );
 	
+	
+	doSetup('untitled.json');
+}
+
+
+function createBox(x, y, material) {
+     
+    // Create sprite
+    var m = materials[material % 3]; 
+    var s = createSprite(x * 50, y * 50, m); 
+
+    // Insert block
+    var i = (x) * w + (y);
+    room[i] = s;
 }
 
 
@@ -109,7 +177,40 @@ function createSprite(x, y, material) {
 	sprite.position.set( x, 50, y );
 	sprite.scale.set( 0.064, 0.064, 1.0 ); // imageWidth, imageHeight
 	scene.add( sprite );
+    return sprite;
+}
 
+
+function checkSpace(x, y) {
+    var i = (x) * w + (y);
+    return room[i];// == undefined;
+
+}
+
+function pushTo(x0, y0, x1, y1) {
+    var i = (x0) * w + (y0);
+    var j = (x1) * w + (y1);
+    room[j] = room[i];
+    room[i] = undefined;
+    
+    var x = x1 * 50;
+    var y = y1 * 50;
+    // TODO Move sprite
+    room[j].sprite.position.set( x, 50, y );
+
+    // Check objective
+    var q = squareColour(y1, x1); // ?
+    if (q != undefined) console.log(j + ' ' + q + ' ' + room[j].col);
+    if (q == room[j].col) {
+        room[j].sprite.position.set( x, -50, y );
+        room[j].move = false;
+    }
+}
+
+
+function squareColour(i, j) {
+    var t = i * 100 + j;
+    return mapLayers[t] % 3;
 }
 
 
@@ -122,17 +223,127 @@ function animate()
 
 function update()
 {
+    // Movement and shifting 
+
+    var newX = character.x, 
+        newY = character.y;
+        
+    var overX = character.x, 
+        overY = character.y;
+
+    if (moveLeft) {
+        newX -= 1;
+        overX -= 2;
+        moveLeft = 0;
+    }
+    if (moveRight) {
+        newX += 1;
+        overX += 2;
+        moveRight = 0;
+    }
+    if (moveUp) {
+        newY -= 1;
+        overY -= 2;
+        moveUp = 0;
+    }
+    if (moveDown) {
+        newY += 1;
+        overY += 2;
+        moveDown = 0;
+    }
+    
+    if (character.x == newX &&
+        character.y == newY) return;
+    
+    if (checkSpace(newX, newY) == undefined) {
+        character.x = newX;
+        character.y = newY;
+                    
+    } else if (checkSpace(newX, newY).move) {
+    } else {
+        if (checkSpace(overX, overY) == undefined) {
+            pushTo(newX, newY, overX, overY);
+            character.x = newX;
+            character.y = newY;
+        }
+    }
+    
+    // Check new space (and one after it)
+    // 1. move
+    // 2. move and push
+    // 3. cancel move
+    
+    var x = character.x * 50;
+    var y = character.y * 50;
+    character.sprite.position.set( x, 50, y );
+
+
 	if ( keyboard.pressed("z") ) 
 	{ 
 		// do something
 	}
-	
-	controls.update();
-	stats.update();
 }
 
 function render() 
 {
 	renderer.render( scene, camera );
 }
+
+
+
+
+  //-------------------------------------------------------------------------
+  // LOAD THE MAP
+  //-------------------------------------------------------------------------
+  
+  function get(url, onsuccess) {
+    var request = new XMLHttpRequest();
+    request.onreadystatechange = function() {
+      if ((request.readyState == 4) && (request.status == 200))
+        onsuccess(request);
+    }
+    request.open("GET", url, true);
+    request.send();
+  }
+  
+  function doSetup(mapname) {
+
+    get(mapname, function(req) {
+      setup(JSON.parse(req.responseText));
+      //setState(state_game);
+    });
+    
+  }
+  
+  var mapLayers = undefined;
+  function setup(map) {
+  
+    var data    = map.layers[0].data;
+    var data1   = map.layers[1].data;
+    mapLayers = data1;
+    
+    for (var i = 0; i < 100; ++i) {
+        for (var j = 0; j < 100; ++j) {
+            var t = j * 100 + i;
+            if (data[t] && data[t] > 1) {
+                MapObjectFactory(i, j, data[t] % 3);
+            }
+            
+            var floorTile = data1[t];
+            if (floorTile > 0) console.log(t);
+            
+            var floorGeometry = new THREE.PlaneGeometry(50, 50, 1, 1);
+	        var floor = new THREE.Mesh(floorGeometry, materials[10 + (floorTile % 4)]);
+	        floor.position.x = (i)*50;
+	        floor.position.y = -0.5;
+	        floor.position.z = (j)*50 - 25;
+	        floor.rotation.x = Math.PI / 2;
+	        scene.add(floor);
+	        objects.push(floor);
+        }
+    }
+    
+    camera.position.x += 50 * 50;
+    camera.position.z += 50 * 50;
+  }
 
