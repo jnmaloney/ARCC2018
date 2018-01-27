@@ -10,6 +10,9 @@ var raycaster = new THREE.Raycaster();
 var mouse = new THREE.Vector2();
 
 var character = { x: 45, y: 45, sprite: undefined };
+var a = { x: character.x, y: character.y, sprite: undefined, basis: 0 };
+var b = { x: character.x, y: character.y, sprite: undefined, basis: 1 };
+    
 var room = [];
 var tiles = [];
 var w = 100;
@@ -21,50 +24,149 @@ var characterState = [character];
 var currentBasis = 0;
 
 // SOME QUANTUM STUFF
-var beamSplit() {
-    var a = { x: character.x, y: character.y, sprite: undefined, basis: 0 };
-    var b = { x: character.x, y: character.y, sprite: undefined, basis: 1 };
+function beamSplit() {
+        
+    if (characterState.length > 1) return;
+    
+    a.x = character.x;
+    a.y = character.y;
+    
+    b.x = character.x;
+    b.y = character.y;    
+    
+    a.sprite.position.set(a.x * 50, 50, a.y * 50);    
+    b.sprite.position.set(b.x * 50, 50, b.y * 50);
+    
     characterState = [a, b];
+
+    ui_update();
+    scene.remove(character.sprite);
+    scene.add(a.sprite);
+    scene.add(b.sprite);
+
 }
 
 
-var beamCombine() {
+function beamCombine() {
     characterState = [character];
     currentBasis = 0;
+    
+    ui_update();
+    scene.remove(a.sprite);
+    scene.remove(b.sprite);
+    scene.add(character.sprite);
 }
 
 
 function checkBeamSplit(i, j) {
-    var t = 100 * i + j;
+    if (characterState.length > 1) return;
+    var t = 100 * j + i;
     var n = mapLayers[t];
+
     if (n == 1) return true;
     return false;
+}
+
+
+function checkBeamCombine(i, j) {
+    if (characterState.length < 2) return;
+            var t = 100 * j + i;
+            var n = mapLayers[t];
+            if (n != 1) return;
+    if (a.x == b.x && a.y == b.y) {
+        beamCombine();
+    }
 }
 
 
 function changeBasis() { 
 
     currentBasis = (currentBasis + 1) % (characterState.length);
+    
+    ui_update();
 
 }
 
 
+// QUANTUM UI
+var stateSprite0,
+    stateSprite1,
+    stateSprite2,
+    stateSprite1a,
+    stateSprite2a;
+    
+function ui_init() {
+
+    var ballTexture = THREE.ImageUtils.loadTexture( 'images/state.png' );
+    var ballTexture_a = THREE.ImageUtils.loadTexture( 'images/state_a.png' );
+
+	var ballMaterial0 = new THREE.SpriteMaterial( { map: ballTexture, useScreenCoordinates: true, alignment: THREE.SpriteAlignment.topLeft, color: 0xbfbfbf  } );
+	var ballMaterial1 = new THREE.SpriteMaterial( { map: ballTexture, useScreenCoordinates: true, alignment: THREE.SpriteAlignment.topLeft, color: 0xef1d1d  } );
+	var ballMaterial2 = new THREE.SpriteMaterial( { map: ballTexture, useScreenCoordinates: true, alignment: THREE.SpriteAlignment.topLeft, color: 0x1def1d  } );
+	var ballMaterial1a = new THREE.SpriteMaterial( { map: ballTexture_a, useScreenCoordinates: true, alignment: THREE.SpriteAlignment.topLeft, color: 0xef1d1d  } );
+	var ballMaterial2a = new THREE.SpriteMaterial( { map: ballTexture_a, useScreenCoordinates: true, alignment: THREE.SpriteAlignment.topLeft, color: 0x1def1d  } );
+	
+	
+	stateSprite0 = new THREE.Sprite( ballMaterial0 );
+	stateSprite0.position.set( 55, 25, 0 );
+	stateSprite0.scale.set( 66, 36, 1.0 ); // imageWidth, imageHeight
+    scene.add(stateSprite0);
+	
+	stateSprite1 = new THREE.Sprite( ballMaterial1 );
+	stateSprite1.position.set( 55, 25, 0 );
+	stateSprite1.scale.set( 66, 36, 1.0 ); // imageWidth, imageHeight
+	
+	
+	stateSprite2 = new THREE.Sprite( ballMaterial2 );
+	stateSprite2.position.set( 155, 25, 0 );
+	stateSprite2.scale.set( 66, 36, 1.0 ); // imageWidth, imageHeight
+	
+	stateSprite1a = new THREE.Sprite( ballMaterial1a );
+	stateSprite1a.position.set( 55, 25, 0 );
+	stateSprite1a.scale.set( 66, 36, 1.0 ); // imageWidth, imageHeight
+
+		
+	stateSprite2a = new THREE.Sprite( ballMaterial2a );
+	stateSprite2a.position.set( 155, 25, 0 );
+	stateSprite2a.scale.set( 66, 36, 1.0 ); // imageWidth, imageHeight
+}
+
+
+function ui_update() {
+
+    scene.remove(stateSprite0);
+    scene.remove(stateSprite1);
+    scene.remove(stateSprite2);
+    scene.remove(stateSprite1a);
+    scene.remove(stateSprite2a);
+                    
+    if (characterState.length == 1) {
+        scene.add(stateSprite0);
+    } else if (currentBasis == 0) {
+        scene.add(stateSprite1);
+        scene.add(stateSprite2a);
+    } else {
+        scene.add(stateSprite1a);
+        scene.add(stateSprite2);
+    }
+}
 
 // - - - - 
 init();
 animate();
+ui_init();
 
 
 // SOMETHING
 function MapObjectFactory(i, j, t) {
     var box = {};
-    var m = materials[t % 3]; 
+    var m = materials[t % 6]; 
     
     var x = i;
     var y = j;
     
     box.sprite = createSprite(x * 50, y * 50, m); 
-    box.move = (t == 1);
+    box.move = (t == 4);
     box.pos = [i, j];
     box.col = t;
     
@@ -88,14 +190,11 @@ function mouseDown(event) {
     var worldX = mouse.x;
     var worldY = mouse.y;
     
-    var a = character.sprite.position;
+    var a = characterState[currentBasis].sprite.position;
     a.applyMatrix4(camera.matrixWorldInverse);
     a.applyMatrix4(camera.projectionMatrix);
-    console.log(a);
-    
-    
-    //var proj = toScreenPosition(character.sprite.position);
-    
+
+        
     var up = worldY - a.y;
     var ac = worldX - a.x;
     if (Math.abs(up) > Math.abs(ac)) {
@@ -160,11 +259,11 @@ function init()
 	floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping; 
 	//floorTexture.repeat.set( 1, 1 );
 	materials[10] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide } );
-	materials[11] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, color: 0x535376 } );
+	materials[11] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, color: 0xff4444 } );
 	materials[12] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, color: 0x00ffff } );
 	materials[13] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, color: 0x6666ff } );
-	//var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
-
+	materials[14] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, color: 0x535376 } );
+    materials[15] = new THREE.MeshBasicMaterial( { map: floorTexture, side: THREE.DoubleSide, color: 0xff0f00 } );
 	
 	////////////
 	// CUSTOM //
@@ -174,8 +273,11 @@ function init()
 	var charTexture = THREE.ImageUtils.loadTexture( 'images/character pink girl sm.png' );
 		
     materials[0] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0xffffff } );
-   	materials[1] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0x535376 } ); // Wall
+   	materials[1] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0xff4444 } ); // Wall
    	materials[2] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0x00ffff } ); 
+   	materials[3] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0x6666ff } ); 
+   	materials[4] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0x535376 } ); 
+    materials[5] = new THREE.SpriteMaterial( { map: crateTexture, useScreenCoordinates: false, color: 0xff0f00 } ); 
 
    	var charMaterial = new THREE.SpriteMaterial( { map: charTexture, useScreenCoordinates: false } );		
 	
@@ -184,16 +286,21 @@ function init()
     var x = character.x * 50;
     var y = character.y * 50;
     character.sprite.position.set( x, 50, y );
+    
+	var charMaterial1 = new THREE.SpriteMaterial( { map: charTexture, useScreenCoordinates: false, color: 0xef1d1d } );	
+	var charMaterial2 = new THREE.SpriteMaterial( { map: charTexture, useScreenCoordinates: false, color: 0x1def1d } );	
+	a.sprite = createSprite( -1, -1, charMaterial1 );
+	b.sprite = createSprite( -1, -1, charMaterial2 );
 	
 	
-	doSetup('untitled.json');
+	doSetup('level2.json');
 }
 
 
 function createBox(x, y, material) {
      
     // Create sprite
-    var m = materials[material % 3]; 
+    var m = materials[material % 6]; 
     var s = createSprite(x * 50, y * 50, m); 
 
     // Insert block
@@ -232,7 +339,7 @@ function pushTo(x0, y0, x1, y1) {
 
     // Check objective
     var q = squareColour(y1, x1); // ?
-    if (q != undefined) console.log(j + ' ' + q + ' ' + room[j].col);
+    //if (q != undefined) console.log(j + ' ' + q + ' ' + room[j].col);
     if (q == room[j].col) {
         blockDrop(x1, y1);
     }
@@ -241,7 +348,7 @@ function pushTo(x0, y0, x1, y1) {
 
 function squareColour(i, j) {
     var t = i * 100 + j;
-    return mapLayers[t] % 3;
+    return mapLayers[t] % 6;
 }
 
 
@@ -255,12 +362,14 @@ function animate()
 function update()
 {
     // Movement and shifting 
+    
+    var controlCharacter = characterState[currentBasis];
 
-    var newX = character.x, 
-        newY = character.y;
+    var newX = controlCharacter.x, 
+        newY = controlCharacter.y;
         
-    var overX = character.x, 
-        overY = character.y;
+    var overX = controlCharacter.x, 
+        overY = controlCharacter.y;
 
     if (moveLeft) {
         newX -= 1;
@@ -283,32 +392,40 @@ function update()
         moveDown = 0;
     }
     
-    if (character.x == newX &&
-        character.y == newY) return;
+    if (controlCharacter.x == newX &&
+        controlCharacter.y == newY) return;
     
     if (checkSpace(newX, newY) == undefined) {
-        character.x = newX;
-        character.y = newY;
+        controlCharacter.x = newX;
+        controlCharacter.y = newY;
                     
     } else if (checkSpace(newX, newY).move) {
     } else {
         if (checkSpace(overX, overY) == undefined) {
             pushTo(newX, newY, overX, overY);
-            character.x = newX;
-            character.y = newY;
+            controlCharacter.x = newX;
+            controlCharacter.y = newY;
         }
     }
+    
+
     
     // Check new space (and one after it)
     // 1. move
     // 2. move and push
     // 3. cancel move
     
-    var x = character.x * 50;
-    var y = character.y * 50;
-    character.sprite.position.set( x, 50, y );
+    var x = controlCharacter.x * 50;
+    var y = controlCharacter.y * 50;
+    controlCharacter.sprite.position.set( x, 50, y );
     
-    checkBeamSplit(character.x, character.y);
+    // Stepping on a splitter
+    if (checkBeamSplit(controlCharacter.x, controlCharacter.y)) {
+        beamSplit();
+    } else {
+         // Check quantum tile
+        checkBeamCombine(controlCharacter.x, controlCharacter.y);
+    }
 
 
 	if ( keyboard.pressed("z") ) 
@@ -376,14 +493,13 @@ function blockDrop(i, j) {
         for (var j = 0; j < 100; ++j) {
             var t = j * 100 + i;
             if (data[t] && data[t] > 1) {
-                MapObjectFactory(i, j, data[t] % 3);
+                MapObjectFactory(i, j, data[t] % 6);
             }
             
             var floorTile = data1[t];
-            if (floorTile > 0) console.log(t);
             
             var floorGeometry = new THREE.PlaneGeometry(50, 50, 1, 1);
-	        var floor = new THREE.Mesh(floorGeometry, materials[10 + (floorTile % 4)]);
+	        var floor = new THREE.Mesh(floorGeometry, materials[10 + (floorTile % 6)]);
 	        floor.position.x = (i)*50;
 	        floor.position.y = -0.5;
 	        floor.position.z = (j)*50 - 25;

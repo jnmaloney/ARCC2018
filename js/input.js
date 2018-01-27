@@ -39,7 +39,8 @@ function keyboard(keyCode) {
 var left = keyboard(37),
     up = keyboard(38),
     right = keyboard(39),
-    down = keyboard(40);
+    down = keyboard(40),
+    tab = keyboard(9);
 
 var moveUp = 0,
     moveDown = 0,
@@ -72,6 +73,11 @@ down.press = function() {
 };
 
 down.release = function() {
+};
+
+
+tab.press = function() {
+    changeBasis();
 };
 
 
