@@ -32,7 +32,7 @@ function keyboard(keyCode) {
     window.addEventListener(
                             "keyup", key.upHandler.bind(key), false
                             );
-                            
+
     return key;
 }
 
@@ -45,8 +45,8 @@ var left = keyboard(37),
 var moveUp = 0,
     moveDown = 0,
     moveLeft = 0,
-    moveRight = 0;    
-    
+    moveRight = 0;
+
 left.press = function() {
     moveLeft = 1;
 };
@@ -83,3 +83,35 @@ tab.press = function() {
 
 
 
+
+// A FUNCTION
+function mouseDown(event) {
+    //console.log(event);
+
+    mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+    mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+
+    // GUI
+
+    // WORLD
+    var worldX = mouse.x;
+    var worldY = mouse.y;
+
+    var a0 = new THREE.Vector3();
+    a0.x = characterState[currentBasis].sprite.position.x;
+    a0.y = characterState[currentBasis].sprite.position.y;
+    a0.z = characterState[currentBasis].sprite.position.z;
+    a0.applyMatrix4(camera.matrixWorldInverse);
+    a0.applyMatrix4(camera.projectionMatrix);
+
+
+    var up = worldY - a0.y;
+    var ac = worldX - a0.x;
+    if (Math.abs(up) > Math.abs(ac)) {
+        if (worldY > a0.y) moveUp = true;
+        if (worldY < a0.y) moveDown = true;
+    } else {
+        if (worldX > a0.x) moveRight = true;
+        if (worldX < a0.x) moveLeft = true;
+    }
+}
